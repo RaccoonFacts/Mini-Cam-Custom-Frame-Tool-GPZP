@@ -1,7 +1,11 @@
-# Mini-Cam-Custom-Frame-Tool-GPZP
-Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras). Mostly publishing a write up so others can use Ai faster than I did, so it should help. 
+# 📷 Mini-Cam-Custom-Frame-Tool-GPZP
 
-Lets you extract, preview, and replace the built-in photo frame overlays stored in the camera's SPI NOR flash chip — no soldering experience required beyond chip clip access.
+Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras).
+Giving this information in a way that AI can understand, they struggle with image placement. Most likely you will get stuck here and I hope it helps you out some. 
+
+⚠️ **Work in Progress** — tools are functional but not fully hardened. Use at your own risk, keep your firmware backup safe.
+
+---
 
 ---
 
@@ -41,7 +45,6 @@ The flash chip is a **Puya PY25D16 (SOP8)** — select this exact part in XGPro.
 ## Installation
 
 ```bash
-pip install Pillow
 git clone https://github.com/RaccoonFacts/Mini-Cam-Custom-Frame-Tool-GPZP.git
 cd Mini-Cam-Custom-Frame-Tool-GPZP
 ```
@@ -103,17 +106,35 @@ For anyone wanting to go deeper:
 
 ## Stock Frame Offsets
 
-| Frame | Tile | Flash Offset |
-|-------|------|-------------|
-| film | CP0001 | see resource table |
-| film | CP0002 | see resource table |
-| film | CP0003 | see resource table |
-| film | CP0100 | see resource table |
-| skateboard | CP0101 | see resource table |
-| skateboard | CP0102 | see resource table |
-| skateboard | CP0103 | see resource table |
-| skateboard | CP0200 | see resource table |
-| graffiti 4th tile | hardcoded | 0x0DFA00 |
+Offsets are located via the resource index table at `0x83400` using base address `0x07EC00`.
+Each tile name maps to a named entry in the table formatted as `<name>GPZP` — the tool resolves these automatically. The graffiti 4th tile has no named entry and is hardcoded.
+
+| Frame | Tile | Strip | Y Position |
+|-------|------|-------|------------|
+| film | CP0001 | 0 | 0 |
+| film | CP0002 | 1 | 120 |
+| film | CP0003 | 2 | 240 |
+| film | CP0100 | 3 | 360 |
+| skateboard | CP0101 | 0 | 0 |
+| skateboard | CP0102 | 1 | 120 |
+| skateboard | CP0103 | 2 | 240 |
+| skateboard | CP0200 | 3 | 360 |
+| neon_star | CP0201 | 0 | 0 |
+| neon_star | CP0202 | 1 | 120 |
+| neon_star | CP0203 | 2 | 240 |
+| neon_star | CP0300 | 3 | 360 |
+| flower | CP0301 | 0 | 0 |
+| flower | CP0302 | 1 | 120 |
+| flower | CP0303 | 2 | 240 |
+| flower | CP0400 | 3 | 360 |
+| smiley | CP0401 | 0 | 0 |
+| smiley | CP0402 | 1 | 120 |
+| smiley | CP0403 | 2 | 240 |
+| smiley | CP0500 | 3 | 360 |
+| graffiti | CP0501 | 0 | 0 |
+| graffiti | CP0502 | 1 | 120 |
+| graffiti | CP0503 | 2 | 240 |
+| graffiti | hardcoded | 3 | 360 — `0x0DFA00` |
 
 ---
 
@@ -126,3 +147,7 @@ This is for personal educational use on hardware you own. Always keep a backup o
 ## Contributing
 
 If you have a different variant of this camera and find different offsets or color formats, open an issue or PR with your findings. Include your firmware MD5 and chip markings.
+
+---
+
+*Reversed and built by [RaccoonFacts](https://github.com/RaccoonFacts)*
