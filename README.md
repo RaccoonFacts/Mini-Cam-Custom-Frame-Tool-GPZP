@@ -1,5 +1,5 @@
 # Mini-Cam-Custom-Frame-Tool-GPZP
-Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras).
+Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras). Mostly publishing a write up so others can use Ai faster than I did, so it should help. 
 
 Lets you extract, preview, and replace the built-in photo frame overlays stored in the camera's SPI NOR flash chip — no soldering experience required beyond chip clip access.
 
