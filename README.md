@@ -1,7 +1,6 @@
 # 📷 Mini-Cam-Custom-Frame-Tool-GPZP
 
 Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras).
-Giving this information in a way that AI can understand, they struggle with image placement. Most likely you will get stuck here and I hope it helps you out some. 
 
 ⚠️ **Work in Progress** — tools are functional but not fully hardened. Use at your own risk, keep your firmware backup safe.
 
@@ -65,19 +64,20 @@ python3 decode_frame.py
 - Transparent pixels = where the photo shows through
 - Save as PNG
 
-### Encode your PNG to GPZP tiles
+### Encode and compress your PNG to GPZP tiles
 ```bash
-python3 encode_frame.py myframe.png ./my_strips/
-# Outputs strip0.bin - strip3.bin
+# Step 1: encode PNG to strips
+python3 frame_encoder.py myframe.png ./my_strips/
+
+# Step 2: compress strips to fit firmware tile sizes
+python3 strip_compressor.py py25d16hb@sop8.bin smiley myframe.png ./my_strips/
 ```
 
 ### Patch into firmware
 ```bash
-python3 patch_frame.py py25d16hb@sop8.bin skateboard ./my_strips/
+python3 patcher.py py25d16hb@sop8.bin smiley ./my_strips/
 # Outputs py25d16hb@sop8_patched.bin
 ```
-
-Frame name options: `film`, `skateboard`, `neon_star`, `flower`, `smiley`, `graffiti`
 
 ### Reflash
 1. Open XGPro, load `py25d16hb@sop8_patched.bin`
@@ -92,7 +92,7 @@ Frame name options: `film`, `skateboard`, `neon_star`, `flower`, `smiley`, `graf
 For anyone wanting to go deeper:
 
 - **Container format:** GPNV (Generalplus proprietary)
-- **Image format:** GPZP — 4-byte magic header + raw deflate (zlib wbits=-15)
+- **Compression:** Raw deflate with **fixed Huffman coding (BTYPE=1)** — the camera's decompressor rejects dynamic Huffman (BTYPE=2) which is Python's zlib default. Must use `Z_FIXED` strategy via libz ctypes.
 - **Color format:** UYVY (YUV422 packed), U and V swapped in decode
 - **Transparency key:** `U=128, V=128, Y=140`
 - **Tile size:** 640×120 pixels
