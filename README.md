@@ -2,7 +2,7 @@
 
 Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras).
 
-⚠️ **Work in Progress** — tools are functional but not fully hardened. Use at your own risk, keep your firmware backup safe. As of right now This works, but the camera needs to be set to VBA and the camera original frame still has to be chosen, but the injected frame will show up on the SD card. 
+⚠️ **Work in Progress** — tools are functional but not fully hardened. Use at your own risk, keep your firmware backup safe. 
 
 ---
 
