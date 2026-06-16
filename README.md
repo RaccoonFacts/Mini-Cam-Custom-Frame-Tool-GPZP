@@ -2,7 +2,7 @@
 
 Custom photo frame toolkit for the **Photo Creator Mini Cam** toy digital camera (and likely other Generalplus GPDV-based cameras).
 
-⚠️ **Work in Progress** — tools are functional but not fully hardened. Use at your own risk, keep your firmware backup safe. 
+⚠️ **Work in Progress** — tools are functional but not fully hardened. Use at your own risk, keep your firmware backup safe.
 
 ---
 
@@ -102,9 +102,39 @@ For anyone wanting to go deeper:
 - **Resource index table:** `0x83400`
 - **Platform:** Generalplus GPDV, ARM Cortex-M
 
+### Update the frame selection preview thumbnail
+```bash
+python3 preview_changer.py py25d16hb@sop8.bin smiley myframe.png
+```
+
+This updates the small thumbnail shown in the camera's frame selection menu. Run this alongside the main patcher to keep the preview in sync with your custom frame.
+
 ---
 
-## Stock Frame Offsets
+## Preview Thumbnail Technical Details
+
+The frame selection menu shows a 160×160 pixel thumbnail for each frame slot. These are stored separately from the main frame tiles in a different region of the firmware.
+
+Key differences from frame tiles:
+
+- **Format:** RGB565 (2 bytes per pixel, little-endian) — not UYVY like the frame tiles
+- **Size:** 160×160 pixels = 51200 bytes uncompressed
+- **Visible area:** Only the top 160×80 pixels are shown in the menu — the bottom half is always black/transparent padding
+- **Transparency key:** `0x8C71` (RGB565) — different from the UYVY frame tile transparency key of `U=128, V=128, Y=140`
+- **Compression:** Same fixed Huffman deflate (BTYPE=1) as frame tiles
+
+Preview offsets in firmware:
+
+| Frame | Offset |
+|-------|--------|
+| film | 0x143A04 |
+| skateboard | 0x144004 |
+| neon_star | 0x144C04 |
+| flower | 0x145804 |
+| smiley | 0x147404 |
+| graffiti | 0x148E04 |
+
+---
 
 Offsets are located via the resource index table at `0x83400` using base address `0x07EC00`.
 Each tile name maps to a named entry in the table formatted as `<name>GPZP` — the tool resolves these automatically. The graffiti 4th tile has no named entry and is hardcoded.
