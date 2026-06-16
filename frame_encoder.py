@@ -1,84 +1,86 @@
 #!/usr/bin/env python3
-# encode_frame.py
-# Usage: python3 encode_frame.py myframe.png
-# Input: 640x480 RGBA PNG (transparent where photo shows through)
-# Output: 4x GPZP tiles ready to flash (strip0.bin - strip3.bin)
+# frame_encoder.py
+# Converts a 640x480 RGBA PNG into 4 GPZP strip files ready for patching
+#
+# Usage: python3 frame_encoder.py <input.png> <output_dir>
 
+import sys, os, zlib, ctypes, ctypes.util
 from PIL import Image
-import struct, zlib, sys, os
 
-TRANS_U = 128
-TRANS_V = 128
-TRANS_Y = 140
+TRANS_U, TRANS_V, TRANS_Y = 128, 128, 140
+
+libz = ctypes.CDLL(ctypes.util.find_library('z'))
+
+class z_stream(ctypes.Structure):
+    _fields_ = [
+        ('next_in',   ctypes.c_char_p),
+        ('avail_in',  ctypes.c_uint),
+        ('total_in',  ctypes.c_ulong),
+        ('next_out',  ctypes.c_char_p),
+        ('avail_out', ctypes.c_uint),
+        ('total_out', ctypes.c_ulong),
+        ('msg',       ctypes.c_char_p),
+        ('state',     ctypes.c_void_p),
+        ('zalloc',    ctypes.c_void_p),
+        ('zfree',     ctypes.c_void_p),
+        ('opaque',    ctypes.c_void_p),
+        ('data_type', ctypes.c_int),
+        ('adler',     ctypes.c_ulong),
+        ('reserved',  ctypes.c_ulong),
+    ]
+
+def compress_fixed(data):
+    """Compress using fixed Huffman deflate (BTYPE=1) — required by camera."""
+    Z_FIXED, Z_DEFLATED, Z_FINISH = 4, 8, 4
+    zst = z_stream()
+    zst.next_in = ctypes.c_char_p(data)
+    zst.avail_in = len(data)
+    out_buf = (ctypes.c_char * 500000)()
+    zst.next_out = ctypes.cast(out_buf, ctypes.c_char_p)
+    zst.avail_out = 500000
+    libz.deflateInit2_(ctypes.byref(zst), 6, Z_DEFLATED, -15, 8, Z_FIXED, b'1.2.11', ctypes.sizeof(zst))
+    libz.deflate(ctypes.byref(zst), Z_FINISH)
+    size = 500000 - zst.avail_out
+    libz.deflateEnd(ctypes.byref(zst))
+    return bytes(out_buf[:size])
 
 def rgb_to_yuv(r, g, b):
-    y =  0.299*r + 0.587*g + 0.114*b
-    u = -0.169*r - 0.331*g + 0.500*b + 128
-    v =  0.500*r - 0.419*g - 0.081*b + 128
-    return int(y), int(u), int(v)
+    y = max(0, min(255, int( 0.299*r + 0.587*g + 0.114*b)))
+    u = max(0, min(255, int(-0.169*r - 0.331*g + 0.500*b + 128)))
+    v = max(0, min(255, int( 0.500*r - 0.419*g - 0.081*b + 128)))
+    return y, u, v
 
 def encode_strip(img_strip):
-    """Convert 640x120 RGBA image to GPZP bytes."""
+    """Convert 640x120 RGBA image to GPZP bytes using fixed Huffman deflate."""
     w, h = 640, 120
-    assert img_strip.size == (w, h), f"Strip must be 640x120, got {img_strip.size}"
     pixels = list(img_strip.getdata())
     raw = bytearray()
-
     for i in range(0, w*h, 2):
         r0,g0,b0,a0 = pixels[i]
         r1,g1,b1,a1 = pixels[i+1]
-
-        if a0 < 128:  # transparent
-            u, y0, v = TRANS_U, TRANS_Y, TRANS_V
+        if a0 < 128:
+            v, y0, u = TRANS_V, TRANS_Y, TRANS_U
         else:
             y0, u, v = rgb_to_yuv(r0, g0, b0)
-            u  = max(0, min(255, u))
-            v  = max(0, min(255, v))
-            y0 = max(0, min(255, y0))
-
-        if a1 < 128:  # transparent
-            y1 = TRANS_Y
-        else:
-            y1, _, _ = rgb_to_yuv(r1, g1, b1)
-            y1 = max(0, min(255, y1))
-
-        # UYVY packing
-        raw += bytes([u, y0, v, y1])
-
-    # Raw deflate compress
-    compressed = zlib.compress(bytes(raw), level=9)[2:-4]  # strip zlib header/checksum
-
-    # GPZP header (4 bytes) - use same magic as original
-    header = b'GPZP'
-    return header + compressed
+        y1 = TRANS_Y if a1 < 128 else rgb_to_yuv(r1, g1, b1)[0]
+        raw += bytes([v, y0, u, y1])  # VYUY — U/V swapped per camera hardware
+    return b'GPZP' + compress_fixed(bytes(raw))
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python3 encode_frame.py myframe.png [output_dir]")
+    if len(sys.argv) < 3:
+        print('Usage: python3 frame_encoder.py <input.png> <output_dir>')
         sys.exit(1)
-
-    src = sys.argv[1]
-    outdir = sys.argv[2] if len(sys.argv) > 2 else '.'
-
-    img = Image.open(src).convert('RGBA')
+    img = Image.open(sys.argv[1]).convert('RGBA')
     if img.size != (640, 480):
-        print(f"Resizing from {img.size} to 640x480...")
+        print(f'Resizing {img.size} -> 640x480')
         img = img.resize((640, 480), Image.LANCZOS)
-
-    os.makedirs(outdir, exist_ok=True)
-
+    os.makedirs(sys.argv[2], exist_ok=True)
     for i in range(4):
         strip = img.crop((0, i*120, 640, (i+1)*120))
-        gpzp = encode_strip(strip)
-        outpath = os.path.join(outdir, f'strip{i}.bin')
-        open(outpath, 'wb').write(gpzp)
-        print(f'strip{i}.bin -> {len(gpzp)} bytes')
+        data = encode_strip(strip)
+        path = os.path.join(sys.argv[2], f'strip{i}.bin')
+        open(path, 'wb').write(data)
+        print(f'strip{i}.bin -> {len(data)} bytes')
+    print('\nDone. Run strip_compressor.py to fit strips to firmware tile sizes.')
 
-    print(f'\nDone. Map strips to frame tiles:')
-    print(f'  strip0.bin -> CP0X01 (y=0)')
-    print(f'  strip1.bin -> CP0X02 (y=120)')
-    print(f'  strip2.bin -> CP0X03 (y=240)')
-    print(f'  strip3.bin -> CP0X00 (y=360)')
-
-if __name__ == '__main__':
-    main()
+if __name__ == '__main__': main()
